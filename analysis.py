@@ -27,6 +27,7 @@ class Analysis:
             return False
 
     def open_syscall(self, _line):
+        print(_line)
         # Extract a file name
         start = _line.find('"') + 1
         end = _line.find('"', start)
@@ -38,10 +39,19 @@ class Analysis:
 
         # If fd is a number, this file is added to the opened files list
         if self.isNumber(fd):
+            size = os.path.getsize(file_name)
             self.opened_files.add_file(fd, file_name)
 
-    def close_syscall(self, _fd):
+    def close_syscall(self, _line):
+        print(_line)
+        # Extract a file descriptor
+        start = _line.find('(') + 1
+        end = _line.find(')', start)
+        fd = _line[start:end]
+
         self.opened_files.delete_file(fd)
+        #self.opened_files.list_print()
+
 
 
 def main():
@@ -61,7 +71,10 @@ def main():
                 if each_line.find('open(') == 0:
                     analysis.open_syscall(each_line)
 
-            analysis.opened_files.list_print()
+                if each_line.find('close(') == 0:
+                    analysis.close_syscall(each_line)
+
+            #analysis.opened_files.list_print()
 
     except IOError as err:
         print('File error: ' + str(err))
