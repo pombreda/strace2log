@@ -4,11 +4,13 @@ This class manages the information of the file that has been opened
 '''
 class FileNode:
 
-    # When a file is opened, this object is created
+    '''
+    When a file is opened, this object is created
+    '''
     def __init__(self, _fd, _name, _size):
         self.fd = _fd                   # file descriptor
         self.name = _name               # file name
-        self.size = _size               # file size
+        self.size = int(_size)          # file size
         self.offset = 0                 # current offset
         self.access = list()            # access history
         self.next = None                # reference to the next node
@@ -25,10 +27,13 @@ class FileNodeList:
         self.cur_file = None
 
     def add_file(self, _fd, _name, _size):
-        new_file = FileNode(_fd, _name, _size) # create a new node
-        new_file.next = self.cur_file   # link the new node to the 'previous' node.
-        self.cur_file = new_file        # set the current node to the new one.
-        print('A file is added => ' + str(new_file.fd) + ' size=' + _size)
+        new_file = FileNode(_fd, _name, _size)  # create a new node
+        new_file.next = self.cur_file           # link the new node to the 'previous' node.
+        self.cur_file = new_file                # set the current node to the new one.
+        print('- fd: ' + str(new_file.fd))
+        print('- name: ' + str(new_file.name))
+	print('- size: ' + str(new_file.size))
+	print('- This file is added to the opened files list')
         self.list_print()
 
     def delete_file(self, _fd):
@@ -36,14 +41,16 @@ class FileNodeList:
         next_file = None
 
         if cur_file == None:
-            print('This list is empty')
+            print('- This list is empty')
             return
         else:
             next_file = cur_file.next
 
         if cur_file.fd == _fd:
             self.cur_file = next_file
-            print('A file is deleted => ' + str(cur_file.fd))
+	    print('- fd: ' + str(cur_file.fd))
+	    print('- name: ' + str(cur_file.name))
+	    print('- This file is deleted from the opened files list')
             del cur_file
             self.list_print()
             return
@@ -51,7 +58,8 @@ class FileNodeList:
         while next_file:
             if next_file.fd == _fd:
                 cur_file.next = next_file.next
-                print('A file is deleted => ' + str(next_file.fd))
+		print('- fd: ' + str(next_file.fd))
+		print('- This file is deleted from the opened files list')
                 del next_file
                 self.list_print()
                 break
@@ -60,7 +68,8 @@ class FileNodeList:
             next_file = next_file.next
 
     def list_print(self):
-        print '[cur list]'
+        print '- Current list of opened files'
+	print '  ',
         file = self.cur_file
         while file:
             print file.fd,
@@ -72,16 +81,25 @@ class FileNodeList:
         file = self.cur_file
         while file:
             if file.fd == _fd:
-                file.access.append(_access)
+		print('- fd: ' + str(file.fd))
+		print('- name: ' + str(file.name))
+		print('- type: ' + str(_type))
+		print('- offset: ' + str(file.offset))
+		print('- size: ' + str(_size))
+		access_info = [_type, file.offset, _size]
+		file.offset = int(file.offset) + int(_size)
+                file.access.append(access_info)
+                print('- history: '),
+                print(file.access)
             file = file.next
 
     def move_file_offset(self, _fd, _offset):
         file = self.cur_file
         while file:
             if file.fd == _fd:
-                file.offset = _offset
+                file.offset = int(_offset)
             file = file.next
-        print('file offset is moved => ' + file.fd)
+        print('- file offset is moved => ' + file.fd)
 
 '''
 ll = FileNodeList()
