@@ -1,3 +1,6 @@
+import os
+import gnuplot
+
 '''
 FileNode class
 This class manages the information of the file that has been opened
@@ -7,10 +10,10 @@ class FileNode:
     '''
     When a file is opened, this object is created
     '''
-    def __init__(self, _fd, _name, _size):
+    def __init__(self, _fd, _file_name, _file_size):
         self.fd = _fd                   # file descriptor
-        self.name = _name               # file name
-        self.size = int(_size)          # file size
+        self.file_name = _file_name	# file name
+        self.file_size = _file_size	# file size
         self.offset = 0                 # current offset
         self.access = list()            # access history
         self.next = None                # reference to the next node
@@ -26,17 +29,51 @@ class FileNodeList:
     def __init__(self):
         self.cur_file = None
 
-    def add_file(self, _fd, _name, _size):
-        new_file = FileNode(_fd, _name, _size)  # create a new node
-        new_file.next = self.cur_file           # link the new node to the 'previous' node.
-        self.cur_file = new_file                # set the current node to the new one.
+    def write_to_file(self, _file_info, _dir_name):
+        num = 1
+        file_name = _file_info.file_name.replace('/', '_')
+        log_file_name = _dir_name + '/' + file_name + '.' + str(num)
+
+        while os.path.isfile(log_file_name):
+            num = num + 1
+            log_file_name = _dir_name + '/' + file_name + '.' + str(num)
+
+        print('- log file name: ' + log_file_name)
+
+        log_file = open(log_file_name, 'w')
+
+        log_file.write('# File Name: ' + str(_file_info.file_name) + '\n')
+        log_file.write('# File Size: ' + str(_file_info.file_size) + '\n\n')
+        log_file.write('# Count, Offset(R), After Offset(R), Offset(W), After Offset(W)\n')
+
+        count_per_file = 0
+
+        for items in _file_info.access:
+            #count = items[1]
+            count_per_file = count_per_file + 1
+            cur_offset = items[2]
+            after_offset = items[3]
+
+            if items[0] == 'read':
+                log_file.write(str(count_per_file) + ',' + str(cur_offset) + ',' + str(after_offset) + ',0,0\n')
+            else:
+                log_file.write(str(count_per_file) + ',0,0,' + str(cur_offset) + ',' + str(after_offset) + '\n');
+
+        log_file.close()
+        gnuplot.draw_graph(log_file_name)
+
+
+    def add_file(self, _fd, _file_name, _file_size):
+        new_file = FileNode(_fd, _file_name, _file_size)	# create a new node
+        new_file.next = self.cur_file				# link the new node to the 'previous' node.
+        self.cur_file = new_file				# set the current node to the new one.
         print('- fd: ' + str(new_file.fd))
-        print('- name: ' + str(new_file.name))
-	print('- size: ' + str(new_file.size))
+        print('- file_name: ' + str(new_file.file_name))
+	print('- file_size: ' + str(new_file.file_size))
 	print('- This file is added to the opened files list')
         self.list_print()
 
-    def delete_file(self, _fd):
+    def delete_file(self, _fd, _dir_name):
         cur_file = self.cur_file
         next_file = None
 
@@ -49,8 +86,9 @@ class FileNodeList:
         if cur_file.fd == _fd:
             self.cur_file = next_file
 	    print('- fd: ' + str(cur_file.fd))
-	    print('- name: ' + str(cur_file.name))
+	    print('- file_name: ' + str(cur_file.file_name))
 	    print('- This file is deleted from the opened files list')
+            self.write_to_file(cur_file, _dir_name)
             del cur_file
             self.list_print()
             return
@@ -59,7 +97,9 @@ class FileNodeList:
             if next_file.fd == _fd:
                 cur_file.next = next_file.next
 		print('- fd: ' + str(next_file.fd))
+                print('- file_name: ' + str(next_file.file_name))
 		print('- This file is deleted from the opened files list')
+                self.write_to_file(next_file, _dir_name)
                 del next_file
                 self.list_print()
                 break
@@ -77,18 +117,30 @@ class FileNodeList:
             file = file.next
         print 'None'
 
-    def record_access_info(self, _fd, _type, _size):
+    def record_access_info(self, _fd, _type, _count, _offset, _block_size):
         file = self.cur_file
         while file:
             if file.fd == _fd:
+                if _offset >= 0:
+                    offset = _offset
+                else:
+                    offset = file.offset
+
+                after_offset = offset + _block_size
+
 		print('- fd: ' + str(file.fd))
-		print('- name: ' + str(file.name))
-		print('- type: ' + str(_type))
-		print('- offset: ' + str(file.offset))
-		print('- size: ' + str(_size))
-		access_info = [_type, file.offset, _size]
-		file.offset = int(file.offset) + int(_size)
+		print('- file_name: ' + str(file.file_name))
+		print('- operation: ' + str(_type))
+                print('- offset: ' + str(offset))
+		print('- block_size: ' + str(_block_size))
+
+                access_info = [_type, _count, offset, after_offset]
+
+                if _offset < 0:
+                    file.offset = after_offset
+
                 file.access.append(access_info)
+    
                 print('- history: '),
                 print(file.access)
             file = file.next
@@ -100,30 +152,3 @@ class FileNodeList:
                 file.offset = int(_offset)
             file = file.next
         print('- file offset is moved => ' + file.fd)
-
-'''
-ll = FileNodeList()
-ll.add_file(1, 'file1')
-#ll.add_file(2, 'file2')
-#ll.add_file(3, 'file3')
-#ll.add_file(4, 'file4')
-#ll.add_file(5, 'file5')
-
-#ll.delete_file(3)
-ll.delete_file(1)
-ll.delete_file(2)
-
-#ll.add_file(3, 'file3')
-'''
-
-'''
-ll = FileNodeList()
-ll.add_node(1, 'test01')
-ll.add_node(2, 'test02')
-ll.record_access_info(1, ['read', 0, 4096])
-ll.record_access_info(2, ['write', 512, 512])
-ll.record_access_info(1, ['read', 4096, 4096])
-
-
-ll.list_print()
-'''
