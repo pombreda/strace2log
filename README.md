@@ -1,4 +1,4 @@
-strace2log
+strace2graph
 ==========
 
 First get a strace.out file
